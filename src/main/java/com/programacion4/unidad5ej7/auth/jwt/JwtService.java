@@ -42,6 +42,27 @@ public class JwtService {
 		signingKey = Keys.hmacShaKeyFor(keyBytes);
 	}
 
+	public String generateAccessToken(String username, Collection<String> roles) {
+		return buildToken(username, roles, properties.accessExpirationMs());
+	}
+
+	public String generateRefreshToken(String username) {
+		return buildToken(username, List.of(), properties.refreshExpirationMs());
+	}
+
+	private String buildToken(String username, Collection<String> roles, long expirationMs) {
+		Instant now = Instant.now();
+		Instant expiry = now.plusMillis(expirationMs);
+
+		return Jwts.builder()
+				.subject(username)
+				.claim(JwtClaimNames.ROLES, roles)
+				.issuedAt(Date.from(now))
+				.expiration(Date.from(expiry))
+				.signWith(signingKey, Jwts.SIG.HS256)
+				.compact();
+	}
+
 	public String generateToken(String username, Collection<String> roles) {
 		Instant now = Instant.now();
 		Instant expiry = now.plusMillis(properties.expirationMs());

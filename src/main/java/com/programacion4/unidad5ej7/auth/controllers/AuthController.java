@@ -1,5 +1,5 @@
 package com.programacion4.unidad5ej7.auth.controllers;
-
+import com.programacion4.unidad5ej7.auth.dtos.request.RefreshRequestDto;
 import com.programacion4.unidad5ej7.auth.dtos.request.LoginRequestDto;
 import com.programacion4.unidad5ej7.auth.dtos.request.RegisterRequestDto;
 import com.programacion4.unidad5ej7.auth.dtos.response.AuthResponseDto;
@@ -37,11 +37,22 @@ public class AuthController {
 
 	/**
 	 * Login HTTP: validación del body, luego {@link AuthService#login} usa el {@code AuthenticationManager} y emite el JWT
-	 * dentro de {@link AuthResponse}; credenciales inválidas se traducen a 401 sin detallar la causa concreta.
+	 * dentro de {@linkAuthResponse}; credenciales inválidas se traducen a 401 sin detallar la causa concreta.
 	 */
 	@PostMapping("/login")
 	public ResponseEntity<BaseResponse<AuthResponseDto>> login(@Valid @RequestBody LoginRequestDto request) {
 		AuthResponseDto body = authService.login(request);
 		return ResponseEntity.ok(BaseResponse.ok(body, "Autenticación correcta"));
+	}
+
+	@PostMapping("/refresh")
+	public ResponseEntity<BaseResponse<AuthResponseDto>> refresh(
+			@Valid @RequestBody RefreshRequestDto request) {
+
+		AuthResponseDto body = authService.refresh(request.refreshToken());
+
+		return ResponseEntity.ok(
+				BaseResponse.ok(body, "Token renovado correctamente")
+		);
 	}
 }

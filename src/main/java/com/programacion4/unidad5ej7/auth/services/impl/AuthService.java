@@ -24,6 +24,8 @@ import org.springframework.transaction.annotation.Transactional;
 import lombok.AllArgsConstructor;
 import com.programacion4.unidad5ej7.auth.services.interfaces.IAuthService;
 
+import java.util.List;
+
 @Service
 @AllArgsConstructor
 public class AuthService implements IAuthService {
@@ -61,27 +63,58 @@ public class AuthService implements IAuthService {
 	@Override
 	public AuthResponseDto login(LoginRequestDto request) {
 		try {
-			// Encapsular la autenticación en un try-catch para manejar el caso de credenciales inválidas
-			// Si las credenciales son inválidas, se lanza una excepción de tipo InvalidCredentialsException
 			Authentication authentication = authenticationManager.authenticate(
-				UsernamePasswordAuthenticationToken.unauthenticated(request.username(), request.password())
+					UsernamePasswordAuthenticationToken.unauthenticated(
+							request.username(),
+							request.password()
+					)
 			);
 
-			// Obtener el usuario autenticado
 			UserDetails principal = (UserDetails) authentication.getPrincipal();
 
-			// Obtener los roles del usuario
-			var roles = principal.getAuthorities().stream().map(GrantedAuthority::getAuthority).toList();
+			var roles = principal.getAuthorities()
+					.stream()
+					.map(GrantedAuthority::getAuthority)
+					.toList();
 
-			// Generar el token JWT
-			String accessToken = jwtService.generateToken(principal.getUsername(), roles);
+			String accessToken = jwtService.generateAccessToken(principal.getUsername(), roles);
+			String refreshToken = jwtService.generateRefreshToken(principal.getUsername());
 
-			// Devolver el token JWT
-			return new AuthResponseDto(accessToken, TOKEN_TYPE_BEARER, jwtProperties.expirationMs());
+			return new AuthResponseDto(
+					accessToken,
+					refreshToken,
+					TOKEN_TYPE_BEARER,
+					jwtProperties.accessExpirationMs()
+			);
 
-			// Si las credenciales son inválidas, se lanza una excepción de tipo InvalidCredentialsException
 		} catch (BadCredentialsException e) {
 			throw new InvalidCredentialsException();
 		}
+	}
+
+	public AuthResponseDto refresh(String refreshToken) {
+
+		var claimsOpt = jwtService.parseValidClaims(refreshToken);
+
+		if (claimsOpt.isEmpty()) {
+			throw new InvalidCredentialsException();
+		}
+
+		String username = claimsOpt.get().getSubject();
+
+		UserEntity user = userRepository.findByUsername(username)
+				.orElseThrow(InvalidCredentialsException::new);
+
+		String accessToken = jwtService.generateAccessToken(
+				user.getUsername(),
+				List.of(user.getRole().name())
+		);
+
+		return new AuthResponseDto(
+				accessToken,
+				refreshToken,
+				TOKEN_TYPE_BEARER,
+				jwtProperties.accessExpirationMs()
+		);
 	}
 }
